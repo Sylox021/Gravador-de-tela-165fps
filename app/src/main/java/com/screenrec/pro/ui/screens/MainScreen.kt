@@ -91,13 +91,37 @@ fun MainScreen(
                 }
             )
 
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Bitrate — atalhos", style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val shortcuts = listOf(
+                        "Baixa" to BitratePreset.BAIXA,
+                        "Média" to BitratePreset.MEDIA,
+                        "Alta" to BitratePreset.ALTA,
+                        "Máxima" to BitratePreset.MAXIMA
+                    )
+                    shortcuts.forEach { (name, preset) ->
+                        FilterChip(
+                            selected = settings.video.bitratePreset == preset && settings.video.customBitrateBps == null,
+                            onClick = {
+                                onSettingsChange(settings.copy(video = settings.video.copy(
+                                    bitratePreset = preset,
+                                    customBitrateBps = null // atalho sempre usa o valor real do preset, não um manual pendente
+                                )))
+                            },
+                            label = { Text("$name (${preset.megabits}Mbps)") }
+                        )
+                    }
+                }
+            }
+
             ConfigDropdown(
-                label = "Bitrate",
+                label = "Bitrate — valor exato",
                 selected = settings.video.bitratePreset.label,
                 options = BitratePreset.values().map { it.label },
                 onSelect = { label ->
                     val preset = BitratePreset.values().first { it.label == label }
-                    onSettingsChange(settings.copy(video = settings.video.copy(bitratePreset = preset)))
+                    onSettingsChange(settings.copy(video = settings.video.copy(bitratePreset = preset, customBitrateBps = null)))
                 }
             )
 

@@ -118,16 +118,13 @@ object RecordingConfigResolver {
         return best
     }
 
+    // Nota: antes havia um cálculo teórico (bits-por-pixel) usado como fallback
+    // quando não havia preset/manual definidos. Como BitratePreset.megabits
+    // agora é sempre não-nulo (17 valores explícitos, sem opção "auto"), esse
+    // cálculo nunca era mais alcançado — removido para não ficar código morto.
     private fun estimateBitrateForScoring(settings: VideoSettings, width: Int, height: Int, fps: Int): Int {
         settings.customBitrateBps?.let { return it }
-        settings.bitratePreset.megabits?.let { return it * 1_000_000 }
-        val pixelsPerSecond = width.toLong() * height.toLong() * fps
-        val bitsPerPixel = when (settings.codec) {
-            com.screenrec.pro.settings.VideoCodecType.H264 -> 0.12
-            com.screenrec.pro.settings.VideoCodecType.HEVC -> 0.08
-            com.screenrec.pro.settings.VideoCodecType.AV1 -> 0.06
-        }
-        return (pixelsPerSecond * bitsPerPixel).toInt().coerceAtLeast(8_000_000)
+        return settings.bitratePreset.megabits * 1_000_000
     }
 
     private fun resolveForResolution(

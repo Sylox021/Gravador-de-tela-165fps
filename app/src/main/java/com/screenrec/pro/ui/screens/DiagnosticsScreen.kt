@@ -83,11 +83,19 @@ fun DiagnosticsScreen(
                         }
                     }
                     Button(onClick = { onRunBenchmark(selectedTestType) }, enabled = !benchmarkRunning, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (benchmarkRunning) "Testando pipeline real..." else "Rodar teste real (165 FPS por codec + alternativas)")
+                        Text(
+                            if (benchmarkRunning) "Testando... (${benchmarkRows.size} de até 9 combinações concluídas)"
+                            else "Rodar teste real (165 FPS por codec + alternativas)"
+                        )
+                    }
+                    if (benchmarkRunning) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                     Text(
                         "O teste grava um arquivo .mp4 temporário de verdade e o analisa depois de fechado — " +
-                            "não é uma estimativa teórica.",
+                            "não é uma estimativa teórica. Cada combinação leva ${selectedTestType.durationMs / 1000}s " +
+                            "de captura real; o teste completo pode levar vários minutos. Os resultados aparecem " +
+                            "abaixo assim que cada combinação termina, não só no final.",
                         style = MaterialTheme.typography.labelSmall
                     )
                 }

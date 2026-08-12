@@ -194,11 +194,17 @@ class MainActivity : ComponentActivity() {
                         benchmarkRunning = benchmarkRunning,
                         onRunBenchmark = { testType ->
                             benchmarkRunning = true
+                            benchmarkRows = emptyList() // limpa a tabela da rodada anterior antes de começar
                             requestProjectionForBenchmark { resultCode, data ->
                                 if (data == null) { benchmarkRunning = false; return@requestProjectionForBenchmark }
                                 lifecycleScope.launch {
-                                    val rows = runFullBenchmark(resultCode, data, testType)
-                                    benchmarkRows = rows
+                                    // Cada linha aparece na tela assim que fica pronta (ver
+                                    // BenchmarkRunner.onRowReady) — antes disso a tela ficava
+                                    // parada em "Testando..." por até vários minutos sem
+                                    // nenhum retorno visível, parecendo travada.
+                                    val rows = runFullBenchmark(resultCode, data, testType) { row ->
+                                        benchmarkRows = benchmarkRows + row
+                                    }
                                     finalReportText = FinalDiagnosticReport.build(
                                         deviceName = Build.MODEL,
                                         displayHz = nativeDisplayInfo().second.toInt(),
@@ -248,7 +254,12 @@ class MainActivity : ComponentActivity() {
         projectionLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
 
-    private suspend fun runFullBenchmark(resultCode: Int, data: Intent, testType: BenchmarkTestType): List<BenchmarkRow> {
+    private suspend fun runFullBenchmark(
+        resultCode: Int,
+        data: Intent,
+        testType: BenchmarkTestType,
+        onRowReady: (BenchmarkRow) -> Unit = {}
+    ): List<BenchmarkRow> {
         // Ver RecordingService.ensureForeground(): o benchmark pede seu próprio
         // MediaProjection fora do fluxo de startRecording(), então precisa da
         // mesma garantia de foreground service ativa (exigida a partir do
@@ -263,7 +274,7 @@ class MainActivity : ComponentActivity() {
             nativeRefreshRateHz = refreshRate,
             tempDir = cacheDir.absolutePath
         )
-        val rows = runner.runFullMatrix(testType)
+        val rows = runner.runFullMatrix(testType, onRowReady)
         projection.stop()
         return rows
     }

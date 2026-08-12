@@ -69,25 +69,34 @@ class BenchmarkRunner(
 
     /** Item 1/2: para cada codec disponível, testa 165 FPS na resolução nativa.
      *  Se falhar (resolver rejeita OU teste real não confirma), tenta bitrate
-     *  médio e depois resolução reduzida antes de desistir daquele codec. */
-    suspend fun runFullMatrix(testType: BenchmarkTestType): List<BenchmarkRow> {
+     *  médio e depois resolução reduzida antes de desistir daquele codec.
+     *
+     *  [onRowReady] é chamado assim que CADA linha fica pronta (não só no
+     *  final da matriz inteira). Sem isso, um teste "Rápido" (9s) já demora
+     *  até ~1min30 no total (até 3 tentativas x 3 codecs), e um teste de
+     *  Estabilidade (30s) pode passar de 4 minutos — sem feedback incremental
+     *  a tela ficava parada em "Testando..." tempo suficiente pra parecer
+     *  travada/quebrada, mesmo funcionando corretamente por baixo. */
+    suspend fun runFullMatrix(testType: BenchmarkTestType, onRowReady: (BenchmarkRow) -> Unit = {}): List<BenchmarkRow> {
         val rows = mutableListOf<BenchmarkRow>()
+        fun emit(row: BenchmarkRow) { rows.add(row); onRowReady(row) }
+
         for (codec in VideoCodecType.values()) {
             val fullAttempt = runSingleTest(
-                VideoSettings(codec = codec, frameRate = FrameRateTarget.FPS_165, bitratePreset = BitratePreset.ALTO),
+                VideoSettings(codec = codec, frameRate = FrameRateTarget.FPS_165, bitratePreset = BitratePreset.ALTA),
                 testType
             )
-            rows.add(fullAttempt)
+            emit(fullAttempt)
 
             if (fullAttempt.stable) continue // item 2: só testa alternativas se a config cheia falhar
 
-            // Alternativa 1: bitrate médio, mesma resolução alvo.
-            val mediumBitrate = runSingleTest(
-                VideoSettings(codec = codec, frameRate = FrameRateTarget.FPS_165, bitratePreset = BitratePreset.ECONOMICO),
+            // Alternativa 1: bitrate mais baixo, mesma resolução alvo.
+            val lowerBitrate = runSingleTest(
+                VideoSettings(codec = codec, frameRate = FrameRateTarget.FPS_165, bitratePreset = BitratePreset.MBPS_20),
                 testType
             )
-            rows.add(mediumBitrate)
-            if (mediumBitrate.stable) continue
+            emit(lowerBitrate)
+            if (lowerBitrate.stable) continue
 
             // Alternativa 2: deixa o resolver reduzir a resolução automaticamente
             // (RecordingConfigResolver já varre a matriz de resoluções — ver item 6/13).
@@ -97,21 +106,23 @@ class BenchmarkRunner(
             val reduced = Size((nativeResolution.width * 0.75).toInt(), (nativeResolution.height * 0.75).toInt())
             val reducedAttempt = runSingleTest(
                 VideoSettings(
-                    codec = codec, frameRate = FrameRateTarget.FPS_165, bitratePreset = BitratePreset.ALTO,
+                    codec = codec, frameRate = FrameRateTarget.FPS_165, bitratePreset = BitratePreset.ALTA,
                     widthPx = reduced.width, heightPx = reduced.height
                 ),
                 testType
             )
-            rows.add(reducedAttempt)
+            emit(reducedAttempt)
         }
         return rows
     }
 
     /** Descobre e testa o melhor ponto de operação automático (AUTO_MAX) para
      *  cada codec — complementa a matriz de 165 FPS fixo acima. */
-    suspend fun runAutoMaxForEachCodec(testType: BenchmarkTestType): List<BenchmarkRow> {
+    suspend fun runAutoMaxForEachCodec(testType: BenchmarkTestType, onRowReady: (BenchmarkRow) -> Unit = {}): List<BenchmarkRow> {
         return VideoCodecType.values().map { codec ->
-            runSingleTest(VideoSettings(codec = codec, frameRate = FrameRateTarget.AUTO_MAX, bitratePreset = BitratePreset.ALTO), testType)
+            val row = runSingleTest(VideoSettings(codec = codec, frameRate = FrameRateTarget.AUTO_MAX, bitratePreset = BitratePreset.ALTA), testType)
+            onRowReady(row)
+            row
         }
     }
 
