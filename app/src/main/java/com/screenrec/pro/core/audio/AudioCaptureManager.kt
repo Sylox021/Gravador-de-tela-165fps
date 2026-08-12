@@ -207,12 +207,26 @@ class AudioCaptureManager(
 
     private fun feedEncoder(samples: ShortArray, count: Int, ptsUs: Long) {
         val mc = encoder ?: return
-        val inputIndex = availableInputIndices.poll(100, TimeUnit.MILLISECONDS) ?: return
-        if (inputIndex < 0) return
-        val inputBuffer = mc.getInputBuffer(inputIndex) ?: return
-        inputBuffer.clear()
-        for (i in 0 until count) inputBuffer.putShort(samples[i])
-        mc.queueInputBuffer(inputIndex, 0, count * 2, ptsUs, 0)
+        var offset = 0
+        var currentPtsUs = ptsUs
+
+        while (offset < count && running.get()) {
+            val inputIndex = availableInputIndices.poll(100, TimeUnit.MILLISECONDS) ?: return
+            val inputBuffer = mc.getInputBuffer(inputIndex) ?: return
+            inputBuffer.clear()
+
+            val maxSamples = inputBuffer.remaining() / 2
+            val samplesToWrite = minOf(count - offset, maxSamples)
+            if (samplesToWrite <= 0) return
+
+            for (i in 0 until samplesToWrite) {
+                inputBuffer.putShort(samples[offset + i])
+            }
+
+            mc.queueInputBuffer(inputIndex, 0, samplesToWrite * 2, currentPtsUs, 0)
+            currentPtsUs += samplesToWrite * 1_000_000L / settings.sampleRateHz
+            offset += samplesToWrite
+        }
     }
 
     fun stop() {
