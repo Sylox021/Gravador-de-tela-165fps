@@ -178,14 +178,15 @@ class AudioCaptureManager(
             }
 
             override fun onOutputBufferAvailable(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
-                if (info.size > 0) {
-                    codec.getOutputBuffer(index)?.let { onEncodedSample(it, info) }
-                }
-                codec.releaseOutputBuffer(index, false)
-                if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                    // Mesma lógica do VideoEncoder (item 4): só é seguro chamar
-                    // stop()/release() depois que o próprio codec confirmou a
-                    // entrega do buffer final marcado com EOS.
+                try {
+                    if (info.size > 0) {
+                        codec.getOutputBuffer(index)?.let { onEncodedSample(it, info) }
+                    }
+                    codec.releaseOutputBuffer(index, false)
+                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                        eosLatch?.countDown()
+                    }
+                } catch (_: IllegalStateException) {
                     eosLatch?.countDown()
                 }
             }
