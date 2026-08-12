@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Gravação de tela via MediaProjection -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- Áudio: microfone e captura de áudio interno (playback capture, API 29+) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Notificação obrigatória de foreground service (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Overlay flutuante de controles/métricas (opcional, solicitado em runtime) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Escrita em armazenamento apenas para APIs < 29 (scoped storage cobre o resto) -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <application
+        android:name=".ScreenRecorderApp"
+        android:allowBackup="false"
+        android:icon="@drawable/ic_tile_record"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.ScreenRecorderPro"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@style/Theme.ScreenRecorderPro">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Serviço principal de gravação. foregroundServiceType=mediaProjection é
+             obrigatório a partir do Android 14 (API 34) para uso de MediaProjection
+             em foreground service; sem isso o startForeground() lança exceção. -->
+        <service
+            android:name=".service.RecordingService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <service
+            android:name=".ui.overlay.OverlayService"
+            android:exported="false" />
+
+        <service
+            android:name=".tile.RecordingTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_record"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+    </application>
+</manifest>
