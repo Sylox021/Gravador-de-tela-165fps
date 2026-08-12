@@ -25,6 +25,7 @@ import com.screenrec.pro.core.diagnostics.FileFpsValidator
 import com.screenrec.pro.core.encoder.CodecCapabilityScanner
 import com.screenrec.pro.core.encoder.HdrChainValidator
 import com.screenrec.pro.core.encoder.RecordingConfigResolver
+import com.screenrec.pro.core.encoder.ConfigResolution
 import com.screenrec.pro.core.encoder.VideoEncoder
 import com.screenrec.pro.core.muxer.MuxerManager
 import com.screenrec.pro.core.muxer.MuxerStats
@@ -145,11 +146,11 @@ class RecordingService : Service() {
         outputPath: String
     ) {
         val resolution = RecordingConfigResolver.resolve(settings.video, nativeResolution, nativeRefreshRateHz)
-        if (resolution is RecordingConfigResolver.ConfigResolution.Rejected) {
+        if (resolution is ConfigResolution.Rejected) {
             _state.value = RecordingState.Rejected(resolution.reason, resolution.bestAvailableFps)
             return
         }
-        val resolved = resolution as RecordingConfigResolver.ConfigResolution.Success
+        val resolved = resolution as ConfigResolution.Success
         currentTargetFps = resolved.fps
         encoderHadError = false
         stopping.set(false)

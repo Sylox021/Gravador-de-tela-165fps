@@ -4,6 +4,7 @@ import android.media.projection.MediaProjection
 import android.util.Size
 import com.screenrec.pro.core.capture.ScreenCaptureManager
 import com.screenrec.pro.core.encoder.RecordingConfigResolver
+import com.screenrec.pro.core.encoder.ConfigResolution
 import com.screenrec.pro.core.encoder.VideoEncoder
 import com.screenrec.pro.core.muxer.MuxerManager
 import com.screenrec.pro.core.performance.FrameMetricsEngine
@@ -117,7 +118,7 @@ class BenchmarkRunner(
     private suspend fun runSingleTest(settings: VideoSettings, testType: BenchmarkTestType): BenchmarkRow {
         val resolution = RecordingConfigResolver.resolve(settings, nativeResolution, nativeRefreshRateHz)
 
-        if (resolution is RecordingConfigResolver.ConfigResolution.Rejected) {
+        if (resolution is ConfigResolution.Rejected) {
             return BenchmarkRow(
                 codec = settings.codec,
                 width = settings.widthPx ?: nativeResolution.width,
@@ -137,7 +138,7 @@ class BenchmarkRunner(
             )
         }
 
-        val resolved = resolution as RecordingConfigResolver.ConfigResolution.Success
+        val resolved = resolution as ConfigResolution.Success
         val metrics = FrameMetricsEngine(resolved.fps)
         val tempPath = File(tempDir, "bench_${settings.codec.name}_${resolved.fps}_${System.currentTimeMillis()}.mp4").absolutePath
 
