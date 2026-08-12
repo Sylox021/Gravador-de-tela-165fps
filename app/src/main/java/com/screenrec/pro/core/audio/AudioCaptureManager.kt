@@ -13,6 +13,7 @@ import com.screenrec.pro.settings.AudioSettings
 import com.screenrec.pro.settings.AudioSource
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -61,6 +62,7 @@ class AudioCaptureManager(
     // leitura de nenhuma das duas.
     private val internalQueue = ConcurrentLinkedQueue<ShortArray>()
     private val micQueue = ConcurrentLinkedQueue<ShortArray>()
+    private val availableInputIndices = LinkedBlockingQueue<Int>()
 
     private val samplesProcessed = AtomicLong(0)
     private var eosLatch: CountDownLatch? = null
@@ -172,7 +174,7 @@ class AudioCaptureManager(
         val mc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
         mc.setCallback(object : MediaCodec.Callback() {
             override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
-                // Alimentado diretamente pela mixLoop via queueInputBuffer.
+                availableInputIndices.offer(index)
             }
 
             override fun onOutputBufferAvailable(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
@@ -205,7 +207,7 @@ class AudioCaptureManager(
 
     private fun feedEncoder(samples: ShortArray, count: Int, ptsUs: Long) {
         val mc = encoder ?: return
-        val inputIndex = mc.dequeueInputBuffer(10_000)
+        val inputIndex = availableInputIndices.poll(100, TimeUnit.MILLISECONDS) ?: return
         if (inputIndex < 0) return
         val inputBuffer = mc.getInputBuffer(inputIndex) ?: return
         inputBuffer.clear()
@@ -229,7 +231,7 @@ class AudioCaptureManager(
                 // vazio de EOS (evita rejeição por alguns muxers/decoders
                 // sensíveis a EOS com PTS "no passado").
                 val finalPtsUs = samplesProcessed.get() * 1_000_000L / settings.sampleRateHz
-                val idx = mc.dequeueInputBuffer(10_000)
+                val idx = availableInputIndices.poll(500, TimeUnit.MILLISECONDS)
                 if (idx >= 0) {
                     mc.queueInputBuffer(idx, 0, 0, finalPtsUs, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                 } else {
