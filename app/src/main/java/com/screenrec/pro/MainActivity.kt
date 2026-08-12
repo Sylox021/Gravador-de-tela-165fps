@@ -119,7 +119,6 @@ class MainActivity : ComponentActivity() {
         }
 
         val serviceIntent = Intent(this, RecordingService::class.java)
-        startService(serviceIntent)
         bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
 
         setContent {
