@@ -70,22 +70,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startOverlay() {
-        // Item 1 (revisão final): SYSTEM_ALERT_WINDOW é uma permissão especial —
-        // não é concedida via ActivityResultContracts.RequestPermission comum,
-        // precisa do fluxo Settings.ACTION_MANAGE_OVERLAY_PERMISSION. A versão
-        // anterior nunca checava isso: em dispositivos onde a permissão não foi
-        // concedida, startService() e addView() falhavam silenciosamente (ou
-        // derrubavam o serviço) sem o usuário entender por quê. Agora
-        // checamos antes de iniciar e damos um retorno claro; a gravação em si
-        // NUNCA é bloqueada por isso — o overlay é estritamente opcional.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
-            android.widget.Toast.makeText(
-                this,
-                "Overlay ao vivo desativado: conceda a permissão \"Exibir sobre outros apps\" para ScreenRecorder Pro nos Ajustes do sistema. A gravação continua normalmente sem o overlay.",
-                android.widget.Toast.LENGTH_LONG
-            ).show()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            !android.provider.Settings.canDrawOverlays(this)
+        ) {
+            val intent = Intent(
+                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
             return
         }
+
         val intent = Intent(this, OverlayService::class.java)
         startService(intent)
         bindService(intent, overlayConnection, Context.BIND_AUTO_CREATE)
